@@ -46,15 +46,28 @@
   text-align: center; 
 }
 
-.board-one { width: 50px; }
-.board-two { width: 100px; }
-.board-three { width: 150px; }
-.board-four { width: 200px; }
-.board-five { width: 250px; }
+.board-one { width: 50px; height: 50px; }
+.board-two { width: 100px; height: 100px; }
+.board-three { width: 150px; height: 150px; }
+.board-four { width: 200px; height: 200px; }
+.board-five { width: 250px; height: 250px; }
 
 .tile-empty { background: white; }
 .tile-two { background: red; }
 .tile-four { background: orange; }
+
+.board-picker {
+  margin-bottom: 1em;
+}
+.chosen-grid { color: grey }
+.grid-style { 
+  cursor: pointer;
+  margin-left: 1em;
+  padding-right: 1em;
+}
+.grid-border {
+  border-right: 1px solid white;
+}
 
 @keyframes App-logo-spin {
   from {

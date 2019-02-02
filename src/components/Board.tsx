@@ -6,7 +6,10 @@ import { getRandomNumberBetween } from '../utils/NumberUtils';
 import { getBoardStyles } from '../utils/StyleUtils';
 
 interface BoardProps {
-  gridSize: number
+  gridSize: number,
+  handleScoreChange: Function,
+  handleGameStatusChange: Function,
+  resetScore: Function
 }
 
 interface BoardState {
@@ -29,11 +32,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
   componentWillMount() { this.createBoard(); }
   componentDidMount() { document.addEventListener("keydown", this.handleKeyEvent); }
   componentWillUnmount() { document.removeEventListener("keydown", this.handleKeyEvent); }
-  componentDidUpdate() {
-    // Is triggered on component update. For now only happens when changing gridsize.
-    // TODO: make better solutin for triggering this
-    // this.createBoard();
-  }
+
   shouldComponentUpdate(nextProps:BoardProps, nextState:BoardState) {
     return nextProps.gridSize !== this.props.gridSize || nextState !== this.state
   }
@@ -42,8 +41,10 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     const { gridSize } = this.props; 
     let newBoard: Tile[] = [];
 
-    for(let i = 0; i < (gridSize*gridSize);i++) newBoard[i] = new EmptyTile(i);
+    this.props.handleGameStatusChange('');
+    this.props.resetScore();
 
+    for(let i = 0; i < (gridSize*gridSize);i++) newBoard[i] = new EmptyTile(i);    
     this.setState({board: this.getBoardWithNewTile(newBoard)});
   }
 
@@ -55,15 +56,12 @@ export default class Board extends React.Component<BoardProps, BoardState> {
   }
 
   handleKeyEvent = (e: KeyboardEvent) => {
-    console.clear();
     switch(e.key) {
       case "ArrowUp": this.moveTiles('up'); break;
       case "ArrowDown": this.moveTiles('down'); break;
       case "ArrowRight": this.moveTiles('right'); break;
       case "ArrowLeft": this.moveTiles('left'); break;
       case "Enter": this.createBoard(); break;
-      case "Alt": break;
-      // default: console.log(e.key); break;
     }
   }
 
@@ -84,10 +82,11 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     let boardForState = this.boardsAreEqual(newBoard, boardBeforeMoving)
       ? board
       : this.getBoardWithNewTile(newBoard);
-  
 
-    console.log('Lose?', this.boardHasFreeTiles(newBoard));
-
+    if(!this.boardHasFreeTiles(newBoard) && !this.hasMovesAvailable(newBoard)) {
+      this.props.handleGameStatusChange('You lost!')
+    }
+    
     this.setState({ board: boardForState });
   }
 
@@ -102,43 +101,40 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     return true;
   }
 
-  // slideDirection = (tile:Tile, board: Tile[]) => {
-  //   const { gridSize } = this.props;
-    
-  //   let row = Math.floor(tile.key/gridSize);
-  //   let column = (tile.key % gridSize)+1
-  //   let tileHumanReadable = tile.key;
+  hasMovesAvailable = (board: Tile[]):boolean => {
+    const { gridSize } = this.props;
+    let boardHasFreeTiles:boolean = false; 
 
-  //   let tileToMoveTo:number = tile.key;
-  //   let newValue:number = tile.value;
-  //   let newBoard:Tile[] = board;
+    // For all tiles on the map, check if it's empty.
+    // For all tiles find neighbours and check if they are empty or match current tile.
+    // If none if this is true there are no moves available
+    board.map( tile => {
+      this.findNeighbours(tile, board, gridSize).map( neighbour => {
+        if(this.checkEmptyTile(tile, board) ||
+          this.checkEmptyTile(neighbour, board) || 
+          this.checkTileMatch(tile,neighbour)) 
+            boardHasFreeTiles = true;
+      });
+    });
 
-  //   // for(let i = gridSize-1; i >= 0; i--) {
-  //     // let tileNumber:number = (row*gridSize) + i;
-  //     let tileToCheck:Tile = board[tileNumber];
+    return boardHasFreeTiles;
+  }
 
-  //     // if(tileToCheck.key >= tile.key) continue;
+  findNeighbours = (tile:Tile, board: Tile[], gridSize: number):Tile[] => {
+    let key = tile.key;
+    let neighbours:Tile[] = [];
 
-  //     let tileIsEmpty = this.checkEmptyTile(tileToCheck);
+    // Left
+    if(key % gridSize) { neighbours.push(board[key-1]); }
+    // Right
+    if((key+1) % gridSize) { neighbours.push(board[key+1]); }
+    // North
+    if(key >= gridSize) { neighbours.push(board[key-gridSize]); }
+    // South
+    if(key < (gridSize*(gridSize-1))) { neighbours.push(board[key+gridSize]); }
 
-  //     if(tileIsEmpty) { 
-  //       tileToMoveTo = tileNumber;
-  //     } else if(this.checkTileMatch(board[tileNumber], board[tile.key])) { 
-  //       tileToMoveTo = tileNumber;
-  //       newValue = tile.value*2;
-  //       break;
-  //     } else { 
-  //       break; 
-  //     }
-  //   }
-
-  //   if(tile.key !== tileToMoveTo) {
-  //     newBoard[tile.key] = new EmptyTile(tile.key);
-  //     newBoard[tileToMoveTo] = new Tile(tileToMoveTo, newValue);  
-  //   }
-
-  //   return newBoard;
-  // }
+    return neighbours;
+  }
 
   slideLeft = (tile:Tile, board:Tile[]):Tile[] => {
     const { gridSize } = this.props;
@@ -150,13 +146,14 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     for(let i = gridSize-1; i >= 0; i--) {
       let tileNumber:number = (row*gridSize) + i;
       let tileToCheck:Tile = board[tileNumber];
-      let tileIsEmpty = this.checkEmptyTile(tileToCheck);
+      let tileIsEmpty = this.checkEmptyTile(tileToCheck, board);
 
       if(tileToCheck.key >= tile.key) continue;
       else if(tileIsEmpty) { tileToMoveTo = tileNumber; } 
       else if(this.checkTileMatch(board[tileNumber], board[tile.key])) { 
         tileToMoveTo = tileNumber;
         newValue = tile.value*2;
+        this.props.handleScoreChange(tile.value*2)
         break;
       } else break;
     }
@@ -179,7 +176,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     for(let i = 0; i < gridSize; i++) {
       let tileNumber:number = column+(i*gridSize);
       let tileToCheck:Tile = board[tileNumber];
-      let tileIsEmpty = this.checkEmptyTile(tileToCheck);
+      let tileIsEmpty = this.checkEmptyTile(tileToCheck, board);
 
       // Only needs to check tiles below
       if(tileToCheck.key <= tile.key) continue; 
@@ -187,6 +184,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
       else if(this.checkTileMatch(board[tileNumber], board[tile.key])) { 
         tileToMoveTo = tileNumber;
         newValue = tile.value*2;
+        this.props.handleScoreChange(tile.value*2)
         break;
       } else break;
     }
@@ -209,7 +207,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     for(let i = 0; i < gridSize; i++) {
       let tileNumber:number = (row*gridSize) + i;
       let tileToCheck:Tile = board[tileNumber];
-      let tileIsEmpty = this.checkEmptyTile(tileToCheck);
+      let tileIsEmpty = this.checkEmptyTile(tileToCheck, board);
 
       // Only needs to check tiles below
       if(tileToCheck.key <= tile.key) continue;
@@ -217,6 +215,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
       else if(this.checkTileMatch(board[tileNumber], board[tile.key])) { 
         tileToMoveTo = tileNumber;
         newValue = tile.value*2;
+        this.props.handleScoreChange(tile.value*2)
         break;
       } else break;
     }
@@ -237,9 +236,9 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     let newValue:number = tile.value;
 
     for(let i = gridSize; i > 0; i--) {
-      let tileNumber:number = (i*gridSize)-(3-column)
+      let tileNumber:number = (i*gridSize)-(gridSize-column)
       let tileToCheck:Tile = board[tileNumber];
-      let tileIsEmpty = this.checkEmptyTile(tileToCheck);
+      let tileIsEmpty = this.checkEmptyTile(tileToCheck, board);
 
       // Only needs to check tiles below
       if(tileToCheck.key >= tile.key) continue;
@@ -247,6 +246,7 @@ export default class Board extends React.Component<BoardProps, BoardState> {
       else if(this.checkTileMatch(board[tileNumber], board[tile.key])) { 
         tileToMoveTo = tileNumber;
         newValue = tile.value*2;
+        this.props.handleScoreChange(tile.value*2)
         break;
       } else break;
     }
@@ -259,8 +259,8 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     return newBoard;
   }
 
-  checkEmptyTile = (tile: Tile):boolean => {
-    return this.state.board[tile.key] instanceof EmptyTile;
+  checkEmptyTile = (tile: Tile, board: Tile[]):boolean => {
+    return board[tile.key] instanceof EmptyTile;
   }
 
   getBoardWithNewTile = (board: Tile[]):Tile[] => {
@@ -281,6 +281,9 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     return board.some(tile => tile instanceof EmptyTile);
   }
 
+  /**
+   * 
+   */
   boardIsValid = (board: Tile[]):boolean => {
     return board.length > 0;
   }
@@ -303,12 +306,12 @@ export default class Board extends React.Component<BoardProps, BoardState> {
   getBoardStyles = ():string => {
     const defaultClass = "board-container";
     switch(this.props.gridSize) {
-      case 1: return `${defaultClass} board-one`; break;
-      case 2: return `${defaultClass} board-two`; break;
-      case 3: return `${defaultClass} board-three`; break;
-      case 4: return `${defaultClass} board-four`; break;
-      case 5: return `${defaultClass} board-five`; break;
-      default: return `${defaultClass}`; break;
+      case 1: return `${defaultClass} board-one`; 
+      case 2: return `${defaultClass} board-two`; 
+      case 3: return `${defaultClass} board-three`; 
+      case 4: return `${defaultClass} board-four`; 
+      case 5: return `${defaultClass} board-five`; 
+      default: return `${defaultClass}`;
     }
   }
 
