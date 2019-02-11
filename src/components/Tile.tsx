@@ -2,7 +2,7 @@ import * as React from 'react';
 
 export default class Tile {
   value: number;
-  key:number;
+  key: number;
 
   constructor(key: number, value: number) {
     this.key = key;

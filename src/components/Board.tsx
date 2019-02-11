@@ -50,9 +50,9 @@ export default class Board extends React.Component<BoardProps, BoardState> {
 
   renderTiles = () => {
     if(this.state.board.length === 0) return []; 
-    return this.state.board.map(t => {
-      return t.renderTile();
-    })
+    return this.state.board.map(tile => {
+      return tile.renderTile();
+    });
   }
 
   handleKeyEvent = (e: KeyboardEvent) => {
@@ -124,15 +124,10 @@ export default class Board extends React.Component<BoardProps, BoardState> {
     let key = tile.key;
     let neighbours:Tile[] = [];
 
-    // Left
-    if(key % gridSize) { neighbours.push(board[key-1]); }
-    // Right
-    if((key+1) % gridSize) { neighbours.push(board[key+1]); }
-    // North
-    if(key >= gridSize) { neighbours.push(board[key-gridSize]); }
-    // South
-    if(key < (gridSize*(gridSize-1))) { neighbours.push(board[key+gridSize]); }
-
+    if(key % gridSize) { neighbours.push(board[key-1]); } // Left
+    if((key+1) % gridSize) { neighbours.push(board[key+1]); } // Right
+    if(key >= gridSize) { neighbours.push(board[key-gridSize]); } // North
+    if(key < (gridSize*(gridSize-1))) { neighbours.push(board[key+gridSize]); } // South
     return neighbours;
   }
 

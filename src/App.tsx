@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import './App.css';
 import Board from './components/Board';
 import BoardSizePicker from './components/BoardSizePicker';
-import { stat } from 'fs';
 
 interface AppState {
   gridSize: number,
@@ -36,13 +35,12 @@ export default class App extends Component<{}, AppState> {
                gridOptions={[2,3,4,5]} 
                currentGridSize={gridSize} 
                handleGridChange={this.handleGridChange}/>
-
           <Board 
               gridSize={gridSize}
               resetScore={this.resetScore}
               handleScoreChange={this.handleScoreChange} 
               handleGameStatusChange={this.handleGameStatusChange}/>
-
+              
         </header>
       </div>
     );
